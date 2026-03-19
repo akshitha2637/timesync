@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TimeSync — Smart Timetable</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --surface: #13131a;
+      --card: #1a1a24;
+      --border: #2a2a3a;
+      --accent: #7c6dfa;
+      --accent2: #fa6d8f;
+      --green: #6dfaaa;
+      --orange: #faaa6d;
+      --text: #e8e8f0;
+      --muted: #7070a0;
+      --radius: 16px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+    body::before {
+      content: ''; position: fixed; top: -200px; left: -200px;
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(124,109,250,0.15) 0%, transparent 70%);
+      pointer-events: none; z-index: 0;
+    }
+    header {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(10,10,15,0.85); backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 32px; display: flex; align-items: center; justify-content: space-between;
+    }
+    .logo { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 800; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .logo span { font-weight: 400; opacity: 0.6; font-size: 13px; margin-left: 8px; color: var(--muted); -webkit-text-fill-color: var(--muted); }
+    #google-status { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+    #google-status .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+    #google-status.connected .dot { background: var(--green); }
+    #google-status.connected { color: var(--green); }
+    main { max-width: 1000px; margin: 0 auto; padding: 40px 24px; position: relative; z-index: 1; }
+    .hero { text-align: center; margin-bottom: 48px; }
+    .hero h1 { font-family: 'Syne', sans-serif; font-size: clamp(36px, 6vw, 60px); font-weight: 800; line-height: 1.1; margin-bottom: 16px; }
+    .hero h1 .highlight { background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .hero p { color: var(--muted); font-size: 17px; max-width: 500px; margin: 0 auto 32px; line-height: 1.6; }
+    .btn-google { display: inline-flex; align-items: center; gap: 10px; background: white; color: #333; padding: 12px 24px; border-radius: 50px; font-size: 15px; font-weight: 500; text-decoration: none; transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+    .btn-google:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0,0,0,0.4); }
+    .btn-google svg { width: 20px; height: 20px; }
+    .section-title { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 700; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+    .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+    .cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 40px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; transition: border-color 0.3s, transform 0.2s; }
+    .card:hover { border-color: var(--accent); transform: translateY(-2px); }
+    .card.uploaded { border-color: var(--green); }
+    .card-icon { font-size: 32px; margin-bottom: 12px; }
+    .card h3 { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+    .card p { color: var(--muted); font-size: 13px; margin-bottom: 16px; line-height: 1.5; }
+    .card-badge { display: inline-block; font-size: 11px; padding: 3px 10px; border-radius: 20px; margin-bottom: 12px; font-weight: 500; }
+    .badge-normal { background: rgba(124,109,250,0.2); color: var(--accent); }
+    .badge-training { background: rgba(250,170,109,0.2); color: var(--orange); }
+    .badge-exam { background: rgba(250,109,143,0.2); color: var(--accent2); }
+    .badge-done { background: rgba(109,250,170,0.2); color: var(--green); }
+    .upload-area { border: 2px dashed var(--border); border-radius: 12px; padding: 20px; text-align: center; cursor: pointer; transition: border-color 0.3s, background 0.3s; position: relative; }
+    .upload-area:hover { border-color: var(--accent); background: rgba(124,109,250,0.05); }
+    .upload-area input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+    .upload-area p { font-size: 13px; color: var(--muted); }
+    .upload-area .icon { font-size: 24px; margin-bottom: 6px; }
+    .upload-status { font-size: 12px; margin-top: 8px; padding: 6px 12px; border-radius: 8px; display: none; }
+    .upload-status.loading { display: block; background: rgba(124,109,250,0.1); color: var(--accent); }
+    .upload-status.success { display: block; background: rgba(109,250,170,0.1); color: var(--green); }
+    .upload-status.error { display: block; background: rgba(250,109,143,0.1); color: var(--accent2); }
+    .sync-box { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 32px; margin-bottom: 40px; }
+    .sync-box h2 { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 800; margin-bottom: 8px; }
+    .sync-box .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 24px; }
+    .date-info { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+    .date-chip { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 16px; font-size: 14px; }
+    .date-chip strong { display: block; font-size: 20px; font-family: 'Syne', sans-serif; }
+    .sync-controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    select { background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 12px 16px; border-radius: 10px; font-size: 15px; font-family: 'DM Sans', sans-serif; cursor: pointer; flex: 1; min-width: 200px; }
+    select:focus { outline: none; border-color: var(--accent); }
+    input[type="date"], input[type="time"], input[type="text"] { background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 12px 16px; border-radius: 10px; font-size: 15px; font-family: 'DM Sans', sans-serif; }
+    input:focus { outline: none; border-color: var(--accent); }
+    .btn { padding: 12px 24px; border-radius: 10px; font-size: 15px; font-weight: 500; border: none; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.2s; }
+    .btn-primary { background: linear-gradient(135deg, var(--accent), #a06dfa); color: white; }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(124,109,250,0.4); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    #exam-alert { background: rgba(250,109,143,0.1); border: 1px solid rgba(250,109,143,0.3); border-radius: 12px; padding: 16px 20px; margin-bottom: 20px; display: none; }
+    #exam-alert.show { display: block; }
+    #exam-alert h4 { color: var(--accent2); margin-bottom: 4px; font-family: 'Syne', sans-serif; }
+    #exam-alert p { color: var(--muted); font-size: 14px; }
+    #sync-result { margin-top: 16px; padding: 16px; border-radius: 12px; display: none; font-size: 14px; }
+    #sync-result.success { display: block; background: rgba(109,250,170,0.1); color: var(--green); border: 1px solid rgba(109,250,170,0.2); }
+    #sync-result.error { display: block; background: rgba(250,109,143,0.1); color: var(--accent2); border: 1px solid rgba(250,109,143,0.2); }
+    .preview-section { margin-bottom: 40px; }
+    .preview-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    .tab-btn { padding: 8px 18px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--muted); font-size: 13px; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.2s; }
+    .tab-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+    .schedule-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .schedule-table th { background: var(--surface); padding: 10px 14px; text-align: left; color: var(--muted); font-weight: 500; border-bottom: 1px solid var(--border); }
+    .schedule-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+    .schedule-table tr:last-child td { border-bottom: none; }
+    .schedule-table tr:hover td { background: rgba(124,109,250,0.05); }
+    .no-data { text-align: center; padding: 40px; color: var(--muted); font-size: 14px; }
+    .table-wrapper { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+    .form-group label { font-size: 13px; color: var(--muted); display: block; margin-bottom: 6px; }
+    .form-group input, .form-group select { width: 100%; }
+    .form-group.full { grid-column: 1 / -1; }
+    .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: middle; margin-right: 6px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @media (max-width: 600px) { header { padding: 12px 16px; } main { padding: 24px 16px; } .sync-controls { flex-direction: column; } .btn { width: 100%; } .form-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">TimeSync <span>by Antigravity</span></div>
+    <div id="google-status">
+      <div class="dot"></div>
+      <span id="google-status-text">Not connected</span>
+    </div>
+  </header>
+
+  <main>
+    <!-- HERO -->
+    <div class="hero">
+      <h1>Your timetable,<br/><span class="highlight">always in sync.</span></h1>
+      <p>Upload your timetable images from WhatsApp. AI reads them. Google Calendar gets updated. You never miss a class.</p>
+      <a href="/auth/google" class="btn-google" id="connect-btn">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+          <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+          <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+          <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+        </svg>
+        Connect Google Calendar
+      </a>
+    </div>
+
+    <!-- STEP 1: UPLOAD -->
+    <div class="section-title">📤 Step 1 — Upload Your Timetables</div>
+    <div class="cards-grid">
+      <div class="card" id="card-normal">
+        <div class="card-icon">📚</div>
+        <span class="card-badge badge-normal">Normal Classes</span>
+        <h3>Regular Timetable</h3>
+        <p>Your everyday class schedule.</p>
+        <div class="upload-area">
+          <input type="file" accept="image/*" onchange="uploadTimetable('normal', this)" />
+          <div class="icon">🖼️</div>
+          <p>Click or drag your timetable image here</p>
+        </div>
+        <div class="upload-status" id="status-normal"></div>
+      </div>
+      <div class="card" id="card-training">
+        <div class="card-icon">🏃</div>
+        <span class="card-badge badge-training">Training Days</span>
+        <h3>Training Timetable</h3>
+        <p>Schedule for days when you have training.</p>
+        <div class="upload-area">
+          <input type="file" accept="image/*" onchange="uploadTimetable('training', this)" />
+          <div class="icon">🖼️</div>
+          <p>Click or drag your training schedule here</p>
+        </div>
+        <div class="upload-status" id="status-training"></div>
+      </div>
+      <div class="card" id="card-exam">
+        <div class="card-icon">📝</div>
+        <span class="card-badge badge-exam">Exam Schedule</span>
+        <h3>Exam Timetable</h3>
+        <p>AI reads the dates and adds them to your calendar automatically.</p>
+        <div class="upload-area">
+          <input type="file" accept="image/*" onchange="uploadTimetable('exam', this)" />
+          <div class="icon">🖼️</div>
+          <p>Click or drag your exam schedule here</p>
+        </div>
+        <div class="upload-status" id="status-exam"></div>
+      </div>
+    </div>
+
+    <!-- STEP 2: SYNC -->
+    <div class="section-title">📅 Step 2 — Sync Today's Schedule</div>
+    <div class="sync-box">
+      <h2>What's your schedule today?</h2>
+      <p class="subtitle">Pick your timetable type and the week, then hit sync.</p>
+      <div class="date-info">
+        <div class="date-chip"><strong id="today-day">—</strong>Today</div>
+        <div class="date-chip"><strong id="today-date">—</strong>Date</div>
+      </div>
+      <div id="exam-alert">
+        <h4>📝 Exam Day Detected!</h4>
+        <p>You have an exam today. Your exam schedule has already been synced to your calendar automatically.</p>
+      </div>
+      <div class="sync-controls" id="sync-controls">
+        <select id="schedule-type">
+          <option value="normal">📚 Normal Classes</option>
+          <option value="training">🏃 Training Day</option>
+        </select>
+        <input type="date" id="week-start" title="Pick the Monday of this week" />
+        <button class="btn btn-primary" onclick="syncToCalendar()" id="sync-btn">Sync to Calendar</button>
+      </div>
+      <div id="sync-result"></div>
+    </div>
+
+    <!-- STEP 3: PREVIEW -->
+    <div class="section-title">🗂️ Your Saved Timetables</div>
+    <div class="preview-section">
+      <div class="preview-tabs">
+        <button class="tab-btn active" onclick="showTab('normal', event)">📚 Normal</button>
+        <button class="tab-btn" onclick="showTab('training', event)">🏃 Training</button>
+        <button class="tab-btn" onclick="showTab('exam', event)">📝 Exams</button>
+      </div>
+      <div class="table-wrapper">
+        <div id="table-normal"><div class="no-data">No normal timetable uploaded yet</div></div>
+        <div id="table-training" style="display:none"><div class="no-data">No training timetable uploaded yet</div></div>
+        <div id="table-exam" style="display:none"><div class="no-data">No exam schedule uploaded yet</div></div>
+      </div>
+    </div>
+
+    <!-- STEP 4: MANUAL ADD -->
+    <div class="section-title">✏️ Add a Missing Class</div>
+    <div class="sync-box">
+      <h2>Manually add a class</h2>
+      <p class="subtitle">If the AI missed a class, add it here directly.</p>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Timetable Type</label>
+          <select id="manual-type" onchange="toggleDateDay()">
+            <option value="normal">📚 Normal Classes</option>
+            <option value="training">🏃 Training Day</option>
+            <option value="exam">📝 Exam</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Subject Name</label>
+          <input type="text" id="manual-subject" placeholder="e.g. DAA" />
+        </div>
+        <div class="form-group" id="manual-day-wrap">
+          <label>Day</label>
+          <select id="manual-day">
+            <option>Monday</option><option>Tuesday</option><option>Wednesday</option>
+            <option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option>
+          </select>
+        </div>
+        <div class="form-group" id="manual-date-wrap" style="display:none">
+          <label>Exam Date</label>
+          <input type="date" id="manual-date" />
+        </div>
+        <div class="form-group">
+          <label>Start Time</label>
+          <input type="time" id="manual-start" />
+        </div>
+        <div class="form-group">
+          <label>End Time</label>
+          <input type="time" id="manual-end" />
+        </div>
+        <div class="form-group full">
+          <label>Venue (optional)</label>
+          <input type="text" id="manual-venue" placeholder="e.g. Room 127" />
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="addClassManually()">➕ Add Class</button>
+      <div id="manual-result" style="margin-top:12px; font-size:14px;"></div>
+    </div>
+
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
